@@ -320,7 +320,7 @@ static ExtrusionEntityCollection traverse_loops_classic(const PerimeterGenerator
             fuzzified = loop.polygon;
             fuzzy_polygon(fuzzified, scaled<float>(params.config.fuzzy_skin_thickness.value), scaled<float>(params.config.fuzzy_skin_point_dist.value));
         }
-        if (params.config.overhangs && params.layer_id > params.object_config.raft_layers
+        if (!params.spiral_vase && params.config.overhangs && params.layer_id > params.object_config.raft_layers
             && ! ((params.object_config.support_material || params.object_config.support_material_enforce_layers > 0) && 
                   params.object_config.support_material_contact_distance.value == 0)) {
             BoundingBox bbox(polygon.points);
@@ -352,7 +352,11 @@ static ExtrusionEntityCollection traverse_loops_classic(const PerimeterGenerator
             // We allow polyline reversal because Clipper may have randomly reversed polylines during clipping.
             chain_and_reorder_extrusion_paths(paths, &paths.front().first_point());
         } else {
-            paths.emplace_back(polygon.split_at_first_point(),
+            // we dont want to keep the last point (duplicate of first point), as our starting point changes on each layer
+            // from one side of the internal infill to the other
+            Polyline line = polygon.split_at_first_point();
+            line.points.pop_back();
+            paths.emplace_back(line,
                 ExtrusionAttributes{
                     role_normal,
                     ExtrusionFlow{
@@ -363,7 +367,7 @@ static ExtrusionEntityCollection traverse_loops_classic(const PerimeterGenerator
                 });
         }
        
-        coll.append(ExtrusionLoop(std::move(paths), loop_role));
+        coll.append(std::move(paths));
     }
     
     // Append thin walls to the nearest-neighbor search (only for first iteration)
@@ -392,17 +396,20 @@ static ExtrusionEntityCollection traverse_loops_classic(const PerimeterGenerator
             out.entities.reserve(out.entities.size() + children.entities.size() + 1);
             ExtrusionLoop *eloop = static_cast<ExtrusionLoop*>(coll.entities[idx.first]);
             coll.entities[idx.first] = nullptr;
-            if (loop.is_contour) {
-                if (eloop->is_clockwise())
-                    eloop->reverse_loop();
-                out.append(std::move(children.entities));
-                out.entities.emplace_back(eloop);
-            } else {
-                if (eloop->is_counter_clockwise())
-                    eloop->reverse_loop();
-                out.entities.emplace_back(eloop);
-                out.append(std::move(children.entities));
+
+            // keep the orientation we constructed!!!
+            if (!params.spiral_vase) {
+                if (loop.is_contour) {
+                    if (eloop->is_clockwise())
+                        eloop->reverse_loop();
+                } else {
+                    if (eloop->is_counter_clockwise())
+                        eloop->reverse_loop();
+                }
             }
+
+            out.append(std::move(children.entities));
+            out.entities.emplace_back(eloop);
         }
     }
     return out;
@@ -1376,7 +1383,9 @@ void PerimeterGenerator::process_classic(
     // extra perimeters for each one
     // detect how many perimeters must be generated for this island
     int        loop_number = params.config.perimeters + surface.extra_perimeters - 1;  // 0-indexed loops
-    ExPolygons last        = union_ex(surface.expolygon.simplify_p(params.scaled_resolution));
+    // ExPolygons last        = union_ex(surface.expolygon.simplify_p(params.scaled_resolution));
+    ExPolygons last        = *new ExPolygons();
+    last.emplace_back(surface.expolygon);
     ExPolygons gaps;
     if (loop_number >= 0) {
         // In case no perimeters are to be generated, loop_number will equal to -1.
@@ -1390,12 +1399,7 @@ void PerimeterGenerator::process_classic(
             if (i == 0) {
                 // the minimum thickness of a single loop is:
                 // ext_width/2 + ext_spacing/2 + spacing/2 + width/2
-                offsets = params.config.thin_walls ? 
-                    offset2_ex(
-                        last,
-                        - float(ext_perimeter_width / 2. + ext_min_spacing / 2. - 1),
-                        + float(ext_min_spacing / 2. - 1)) :
-                    offset_ex(last, - float(ext_perimeter_width / 2.));
+                offsets = last;
                 // look for thin walls
                 if (params.config.thin_walls) {
                     // the following offset2 ensures almost nothing in @thin_walls is narrower than $min_width
@@ -1409,10 +1413,11 @@ void PerimeterGenerator::process_classic(
                     for (ExPolygon &ex : expp)
                         ex.medial_axis(min_width, ext_perimeter_width + ext_perimeter_spacing2, &thin_walls);
                 }
-                if (params.spiral_vase && offsets.size() > 1) {
-                	// Remove all but the largest area polygon.
-                	keep_largest_contour_only(offsets);
-                }
+
+               if (params.spiral_vase && offsets.size() > 1) {
+                    // Remove all but the largest area polygon.
+                    keep_largest_contour_only(offsets);
+               }
             } else {
                 //FIXME Is this offset correct if the line width of the inner perimeters differs
                 // from the line width of the infill?

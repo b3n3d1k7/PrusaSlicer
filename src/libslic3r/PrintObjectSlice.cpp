@@ -144,6 +144,11 @@ static std::vector<VolumeSlices> slice_volumes_inner(
     params_base.extra_offset   = 0;
     params_base.trafo          = object_trafo;
     params_base.resolution     = print_config.resolution.value;
+    params_base.internal_structure_top_points = print_config.internal_structure_top_points;
+    params_base.internal_structure_wave_length = print_config.internal_structure_wave_length;
+    params_base.internal_structure_wave_height = print_config.internal_structure_wave_height;
+    params_base.layer_height                  = print_object_config.layer_height;
+    params_base.nozzle_diameter                = print_config.nozzle_diameter.get_at(0);
 
     switch (print_object_config.slicing_mode.value) {
     case SlicingMode::Regular:    params_base.mode = MeshSlicingParams::SlicingMode::Regular; break;

@@ -31,7 +31,10 @@ struct Parameters {
         const PrintRegionConfig    &config,
         const PrintObjectConfig    &object_config,
         const PrintConfig          &print_config,
-        const bool                  spiral_vase) :   
+        const bool                  spiral_vase,
+        const int                   internal_structure_top_points,
+        const float                 internal_structure_wave_length,
+        const float                 internal_structure_wave_height):   
             layer_height(layer_height),
             layer_id(layer_id),
             perimeter_flow(perimeter_flow), 
@@ -40,8 +43,10 @@ struct Parameters {
             solid_infill_flow(solid_infill_flow),
             config(config), 
             object_config(object_config), 
-            print_config(print_config),
-            spiral_vase(spiral_vase),
+            print_config(print_config), spiral_vase(spiral_vase),
+            internal_structure_top_points(internal_structure_top_points),
+            internal_structure_wave_length(internal_structure_wave_length),
+            internal_structure_wave_height(internal_structure_wave_height),
             scaled_resolution(scaled<double>(print_config.gcode_resolution.value)),
             mm3_per_mm(perimeter_flow.mm3_per_mm()),
             ext_mm3_per_mm(ext_perimeter_flow.mm3_per_mm()), 
@@ -62,6 +67,9 @@ struct Parameters {
 
     // Derived parameters
     bool                         spiral_vase;
+    int                          internal_structure_top_points;
+    float                        internal_structure_wave_length;
+    float                        internal_structure_wave_height;
     double                       scaled_resolution;
     double                       ext_mm3_per_mm;
     double                       mm3_per_mm;

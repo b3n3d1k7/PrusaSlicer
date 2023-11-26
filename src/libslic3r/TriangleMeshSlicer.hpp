@@ -48,6 +48,16 @@ struct MeshSlicingParamsEx : public MeshSlicingParams
     // Resolution for contour simplification, unscaled.
     // 0 = don't simplify.
     double        resolution { 0 };
+
+    int internal_structure_top_points{ 3 };
+
+    float internal_structure_wave_length{ 20.0 };
+
+    float internal_structure_wave_height{ 5.0 };
+
+    double layer_height{ 0.2 };
+
+    double nozzle_diameter{ 0.4 };
 };
 
 // All the following slicing functions shall produce consistent results with the same mesh, same transformation matrix and slicing parameters.

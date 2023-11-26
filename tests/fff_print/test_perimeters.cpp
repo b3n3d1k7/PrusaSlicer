@@ -53,7 +53,10 @@ SCENARIO("Perimeter nesting", "[Perimeters]")
             static_cast<const PrintRegionConfig&>(config),
             static_cast<const PrintObjectConfig&>(config),
             static_cast<const PrintConfig&>(config),
-            false); // spiral_vase
+            false, // spiral_vase
+            3,
+            20,
+            5);
         Polygons lower_layer_polygons_cache;
         for (const Surface &surface : slices)
         // FIXME Lukas H.: Disable this test for Arachne because it is failing and needs more investigation.

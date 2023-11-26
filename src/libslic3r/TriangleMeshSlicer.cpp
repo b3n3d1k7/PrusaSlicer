@@ -1962,8 +1962,15 @@ std::vector<ExPolygons> slice_mesh_ex(
                 assert(!has_duplicate_points(expolygons));
 #endif // NDEBUG
                 //FIXME simplify
-                if (this_mode == MeshSlicingParams::SlicingMode::PositiveLargestContour)
+                if (this_mode == MeshSlicingParams::SlicingMode::PositiveLargestContour) {
                     keep_largest_contour_only(expolygons);
+
+                    // no internal structure on first layer(s) with solid infill
+                    if (layer_id >= params.slicing_mode_normal_below_layer) {
+                        add_internal_structure(expolygons, layer_id, params.internal_structure_top_points, params.layer_height, 
+                            params.nozzle_diameter, params.internal_structure_wave_length, params.internal_structure_wave_height);
+                    }
+                }
                 if (resolution != 0.) {
                     ExPolygons simplified;
                     simplified.reserve(expolygons.size());

@@ -14,6 +14,10 @@ namespace Slic3r {
 
 std::string SpiralVase::process_layer(const std::string &gcode)
 {
+    // skip processing for internal structure
+    m_reader.parse_buffer(gcode);
+    return gcode;
+
     /*  This post-processor relies on several assumptions:
         - all layers are processed through it, including those that are not supposed
           to be transformed, in order to update the reader with the XY positions

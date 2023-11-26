@@ -106,7 +106,10 @@ void LayerRegion::make_perimeters(
         region_config,
         this->layer()->object()->config(),
         print_config,
-        spiral_vase
+        spiral_vase,
+        print_config.internal_structure_top_points,
+        print_config.internal_structure_wave_length,
+        print_config.internal_structure_wave_height
     );
 
     // Cummulative sum of polygons over all the regions.

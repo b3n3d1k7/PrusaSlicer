@@ -482,6 +482,13 @@ bool remove_same_neighbor(ExPolygons &expolys);
 
 bool remove_sticks(ExPolygon &poly);
 void keep_largest_contour_only(ExPolygons &polygons);
+void add_internal_structure(ExPolygons & polygons,
+                            size_t       layer_id,
+                            const int    internal_structure_top_points,
+                            const double layer_height,
+                            const double nozzle_diameter,
+                            const float  internal_structure_wave_length,
+                            const float  internal_structure_wave_height);
 
 inline double      area(const ExPolygon &poly) { return poly.area(); }
 inline double      area(const ExPolygons &polys) { double s = 0.; for (auto &p : polys) s += p.area(); return s; }

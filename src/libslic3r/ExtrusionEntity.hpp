@@ -297,7 +297,8 @@ public:
     // Used by PerimeterGenerator to reorient extrusion loops.
     void            reverse_loop();
     const Point&    first_point() const override { return this->paths.front().polyline.points.front(); }
-    const Point&    last_point() const override { assert(this->first_point() == this->paths.back().polyline.points.back()); return this->first_point(); }
+
+    const Point&    last_point() const override { return this->paths.back().polyline.points.back(); }
     const Point&    middle_point() const override { auto& path = this->paths[this->paths.size() / 2]; return path.polyline.points[path.polyline.size() / 2]; }
     Polygon         polygon() const;
     double          length() const override;

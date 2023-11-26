@@ -532,4 +532,130 @@ void keep_largest_contour_only(ExPolygons &polygons)
 	}
 }
 
+void add_internal_structure(ExPolygons & polygons,
+                            size_t       layer_id,
+                            const int    internal_structure_top_points,
+                            const double layer_height,
+                            const double nozzle_diameter,
+                            const float  internal_structure_wave_length,
+                            const float  internal_structure_wave_height)
+{
+    // internal structure: \/\/\/
+    int number_of_points      = (2 * internal_structure_top_points) - 1;
+
+    // get x-expansion of object
+    BoundingBox bb        = get_extents(polygons[0]);
+    coord_t     bb_size_x = bb.size().x();
+
+    // distance of points (both top and bottom)
+    // perpendicular to orientation (i.e. y by default)
+    float distance_between_points = float(bb_size_x / (2.0 * internal_structure_top_points));
+
+    // cut object by lines in orientation axis to get anchor-points on perimeters
+    Points points;
+    points.reserve(number_of_points);
+
+    // unit of model is nanometers
+    float mm_factor = 1000000.0f;
+
+    bool wave = true; // else zigzag TODO make configurable?!
+
+     float point_offset_x;
+    if (wave) {
+        // wave to make internal structure more stable (-> layers with max x-change not ideal, as too little overlap -> layers come appart!)
+        point_offset_x = (internal_structure_wave_height / 2.0) 
+            * sin(((layer_height * float(layer_id)) / (internal_structure_wave_length / 2.0)) * PI);
+    } else {
+        // zig-zag to make internal structure more stable (-> breaks where direction changes)
+        float nozzle_overlap           = 0.5f;
+        float x_offset_per_layer       = nozzle_diameter * (1.0 - nozzle_overlap);
+        int   num_layers_per_direction = (int) ceil(internal_structure_wave_height / x_offset_per_layer);
+        int   direction                = (layer_id / num_layers_per_direction) % 2 == 0 ? 1 : -1; // 1: right, -1: left
+        int   direction_layer          = layer_id % num_layers_per_direction;
+
+        if (direction_layer == num_layers_per_direction / 2 + 1 && num_layers_per_direction % 2 == 1) {
+            point_offset_x = 0.0;
+        } else if (direction_layer < num_layers_per_direction / 2) {
+            point_offset_x = -1.0 * direction * ((num_layers_per_direction / 2) - direction_layer) * x_offset_per_layer * mm_factor;
+        } else { // (direction_layer > num_layers_per_direction / 2)
+            point_offset_x = direction * (direction_layer - (num_layers_per_direction / 2)) * x_offset_per_layer * mm_factor;
+        }
+    }
+
+    for (int p = 0; p < number_of_points; ++p) {
+        point_offset_x += distance_between_points;
+        int  point_x       = bb.min.x() + point_offset_x;
+        Line vertical_line = Line(*new Point(point_x, bb.min.y()), *new Point(point_x, bb.max.y()));
+
+        // there will be two intersection points per vertical_line
+        Points vertical_line_intersection_points;
+        vertical_line_intersection_points.reserve(2);
+        int intersection_point_index = 0;
+
+        // assuming there is only one expoligon (should be true for surfboard print case, right?!)
+        Lines object_lines = polygons[0].lines();
+        for (Lines::const_iterator h = object_lines.begin(); h != object_lines.end(); ++h) {
+            Point *intersection = new Point();
+            if (vertical_line.intersection(*h, intersection)) {
+                vertical_line_intersection_points.push_back(*intersection);
+                intersection_point_index++;
+            }
+        }
+
+        if (p % 2 == 0) {
+            // even: top point -> get point with higher y
+            if (vertical_line_intersection_points[0].y() > vertical_line_intersection_points[1].y()) {
+                points.push_back(vertical_line_intersection_points[0]);
+            } else {
+                points.push_back(vertical_line_intersection_points[1]);
+            }
+        } else {
+            // uneven: bottom point -> get point with lower y
+            if (vertical_line_intersection_points[0].y() < vertical_line_intersection_points[1].y()) {
+                points.push_back(vertical_line_intersection_points[0]);
+            } else {
+                points.push_back(vertical_line_intersection_points[1]);
+            }
+        }
+    }
+
+    // Start at first/last point of internal structure.
+    // Internal structure first, then offset contour - end at last/first point of internal structure.
+    // Problem: where to put the taper (can't do full taper, as we change direction / order of the offset contour halves)
+    // -> adjust to not use tapering (just move/jump up on first move without retraction)
+
+    // reverse orientation of internal structure every other layer to get a continuous print
+    if (layer_id % 2 == 0) {
+        std::reverse(points.begin(), points.end());
+    }
+
+    int    num_contour_points = polygons[0].contour.points.size();
+    Points contour_points;
+    contour_points.reserve(num_contour_points + number_of_points + 1);
+
+    // add internal structure in beginning -> reverse, append, reverse
+    for (Points::const_iterator it = points.begin(); it != points.end(); ++it) {
+        contour_points.push_back(*it);
+    }
+
+    // reorder offsets[0].contour points to start / continue smoothly after internal structure
+    int contour_start_index = polygons[0].contour.closest_point_index(points.back());
+
+    for (int ci = contour_start_index; ci < num_contour_points; ci++) {
+        contour_points.push_back(polygons[0].contour.points[ci]);
+    }
+
+    for (int ci = 0; ci < contour_start_index; ci++) {
+        contour_points.push_back(polygons[0].contour.points[ci]);
+    }
+
+    contour_points.push_back(*points.rbegin());
+
+    // insert points in new order
+    polygons[0].contour.points.clear();
+    for (Points::const_iterator it = contour_points.begin(); it != contour_points.end(); ++it) {
+        polygons[0].contour.points.push_back(*it);
+    }
+}
+
 } // namespace Slic3r

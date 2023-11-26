@@ -2608,6 +2608,22 @@ void PrintConfigDef::init_fff_params()
                    "It won't work when printing more than one single object.");
     def->set_default_value(new ConfigOptionBool(false));
 
+    def          = this->add("internal_structure_top_points", coInt);
+    def->label   = L("Internal Structure top points");
+    def->tooltip = L("Number of top points for internal structure. Number of bottom points will be one less.");
+    def->min = 3;
+    def->set_default_value(new ConfigOptionInt(3));
+
+    def          = this->add("internal_structure_wave_length", coFloat);
+    def->label   = L("Internal Structure wave length in mm");
+    def->min = 0;
+    def->set_default_value(new ConfigOptionFloat(20));
+
+    def          = this->add("internal_structure_wave_height", coFloat);
+    def->label   = L("Internal Structure wave height in mm");
+    def->min = 0;
+    def->set_default_value(new ConfigOptionFloat(5));
+
     def = this->add("standby_temperature_delta", coInt);
     def->label = L("Temperature variation");
     // TRN PrintSettings : "Ooze prevention" > "Temperature variation"
